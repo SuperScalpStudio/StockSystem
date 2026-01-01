@@ -17,7 +17,16 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         input[type="number"]::-webkit-inner-spin-button, 
         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        #reader__scan_region video { object-fit: cover !important; }
+        
+        /* 掃描器全螢幕優化 */
+        #reader video { 
+            object-fit: cover !important; 
+            width: 100% !important; 
+            height: 100% !important;
+        }
+        #reader__scan_region {
+            background: black !important;
+        }
         
         .app-container {
             height: 100vh;
@@ -26,7 +35,6 @@
         .safe-top { padding-top: env(safe-area-inset-top); }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
 
-        /* 震動動畫 - 用於提示歐元總額未填 */
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
             25% { transform: translateX(-4px); }
@@ -34,7 +42,6 @@
         }
         .animate-shake { animation: shake 0.2s ease-in-out 0s 2; }
 
-        /* 旋轉動畫 */
         @keyframes spin {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
