@@ -78,7 +78,7 @@ const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onC
   useEffect(() => {
     const html5QrCode = new Html5Qrcode("reader");
     
-    // 完全移除 qrbox 與 aspectRatio 限制，讓引擎全畫面辨識，解決靈敏度問題
+    // 全螢幕秒讀模式：不傳入 qrbox 與 aspectRatio
     html5QrCode.start(
       { facingMode: "environment" }, 
       { 
@@ -91,7 +91,7 @@ const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onC
       }, 
       undefined
     ).catch((err) => { 
-      console.error(err);
+      console.error("Camera Start Error:", err);
       onClose(); 
     });
 
@@ -103,33 +103,17 @@ const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onC
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-black z-[100] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 bg-black z-[100] flex flex-col overflow-hidden animate-in fade-in duration-300">
+      {/* 全螢幕相機視圖 */}
       <div id="reader" className="absolute inset-0 w-full h-full"></div>
       
-      {/* 僅保留一個視覺指引框，解決「兩個框」的困擾 */}
-      <div className="absolute inset-0 z-10 pointer-events-none flex flex-col">
-        <div className="flex-1 bg-black/50"></div>
-        <div className="flex h-48">
-          <div className="flex-1 bg-black/50"></div>
-          <div className="w-[80vw] relative border border-white/20 rounded-xl">
-            <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg"></div>
-            <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg"></div>
-            <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg"></div>
-            <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-indigo-500 rounded-br-lg"></div>
-          </div>
-          <div className="flex-1 bg-black/50"></div>
-        </div>
-        <div className="flex-1 bg-black/50 flex justify-center pt-8">
-          <p className="text-white/60 text-xs font-bold tracking-widest uppercase">自動偵測中</p>
-        </div>
-      </div>
-
-      <div className="absolute bottom-12 left-0 right-0 z-20 flex justify-center px-10">
+      {/* 底部極簡關閉鈕 - 純淨全螢幕無多餘裝飾 */}
+      <div className="absolute bottom-12 left-0 right-0 z-20 flex justify-center">
         <button 
           onClick={onClose} 
-          className="bg-white/10 backdrop-blur-xl border border-white/20 text-white w-full py-4 rounded-2xl font-black text-sm active:scale-95 transition-all"
+          className="bg-white/10 backdrop-blur-3xl border border-white/20 text-white p-5 rounded-full active:scale-90 transition-all shadow-2xl pointer-events-auto"
         >
-          取消掃描
+          <X size={24} strokeWidth={2.5} />
         </button>
       </div>
     </div>
@@ -148,7 +132,7 @@ const InventoryView = ({ state, onUpdate }: { state: InventoryState, onUpdate: (
 
   const filtered = Object.values(state.products)
     .filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.barcode.toLowerCase().includes(search.toLowerCase()))
-    // 關鍵修改：依據品名排序 (中文排序)
+    // 嚴格依品名排序 (中文排序)
     .sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'));
 
   return (
@@ -175,7 +159,7 @@ const InventoryView = ({ state, onUpdate }: { state: InventoryState, onUpdate: (
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
           <input 
             type="text" 
-            placeholder="依品名排序搜尋..."
+            placeholder="依品名搜尋庫存..."
             className="w-full bg-white border border-slate-200/50 rounded-xl py-2 pl-9 pr-4 text-sm focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm" 
             value={search} 
             onChange={e => setSearch(e.target.value)} 
@@ -289,7 +273,7 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
             <div className={`p-1.5 rounded-lg ${type === TransactionType.PURCHASE ? 'bg-purple-100 text-purple-600' : 'bg-emerald-100 text-emerald-600'}`}>
               {type === TransactionType.PURCHASE ? <PackagePlus size={16} /> : <ShoppingCart size={16} />}
             </div>
-            <span className="font-extrabold text-sm">{type === TransactionType.PURCHASE ? '進貨模式' : '銷貨模式'}</span>
+            <span className="font-extrabold text-sm">{type === TransactionType.PURCHASE ? '進貨' : '銷貨'}</span>
           </div>
           {type === TransactionType.PURCHASE && (
             <div className="bg-slate-200/50 p-1 rounded-xl flex text-[10px] font-black">
@@ -307,7 +291,7 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
           <div className="flex gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-              <input type="text" placeholder="輸入或掃描條碼..." className={inputClass + " pl-10"} value={barcode} onChange={e => lookup(e.target.value)} />
+              <input type="text" placeholder="條碼" className={inputClass + " pl-10"} value={barcode} onChange={e => lookup(e.target.value)} />
             </div>
             <button onClick={() => setScanner(true)} className="bg-slate-900 text-white p-2.5 rounded-xl active:scale-90 transition-transform"><Camera size={20} /></button>
           </div>
@@ -316,7 +300,7 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
             <input type="number" inputMode="decimal" placeholder="數量" className={inputClass} value={qty} onChange={e => setQty(e.target.value)} />
             <input type="number" inputMode="decimal" placeholder={currency} className={inputClass} value={price} onChange={e => setPrice(e.target.value)} />
           </div>
-          <button onClick={addItem} className={`w-full py-3.5 ${type === TransactionType.PURCHASE ? 'bg-purple-600' : 'bg-emerald-600'} text-white rounded-xl font-black text-sm active:scale-95 transition-all`}>加入清單</button>
+          <button onClick={addItem} className={`w-full py-3.5 ${type === TransactionType.PURCHASE ? 'bg-purple-600' : 'bg-emerald-600'} text-white rounded-xl font-black text-sm active:scale-95 transition-all shadow-md`}>加入清單</button>
         </div>
 
         {items.length > 0 && (
@@ -337,11 +321,11 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
           <div className="bg-slate-900 text-white p-6 rounded-3xl space-y-4 shadow-xl">
             <div className="space-y-4">
               {type === TransactionType.PURCHASE && currency === 'EUR' ? (
-                <input type="number" placeholder="刷卡台幣總額" className="w-full bg-slate-800 rounded-xl py-3 px-4 text-white font-black" value={totalBill} onChange={e => setTotalBill(e.target.value)} />
+                <input type="number" placeholder="刷卡台幣總額" className="w-full bg-slate-800 border-none rounded-xl py-3 px-4 text-white font-black" value={totalBill} onChange={e => setTotalBill(e.target.value)} />
               ) : (
                 <p className="text-2xl font-black">${currentListTotal.toLocaleString()}</p>
               )}
-              <input type="text" placeholder="備註 (選填)" className="w-full bg-slate-800 rounded-xl py-3 px-4 text-sm text-white" value={remarks} onChange={e => setRemarks(e.target.value)} />
+              <input type="text" placeholder="備註" className="w-full bg-slate-800 border-none rounded-xl py-3 px-4 text-sm text-white" value={remarks} onChange={e => setRemarks(e.target.value)} />
             </div>
             <button onClick={handleFinalSubmit} className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black text-sm active:scale-95 transition-all">確認提交</button>
           </div>
@@ -362,7 +346,7 @@ const HistoryView = ({ transactions }: { transactions: Transaction[] }) => {
   return (
     <div className="flex flex-col h-full bg-slate-50">
       <Header>
-        <div className="px-4 w-full"><input type="text" placeholder="搜尋貨流..." className="w-full bg-slate-100 border-none rounded-xl py-2 px-4 text-sm" value={search} onChange={e => setSearch(e.target.value)} /></div>
+        <div className="px-4 w-full"><input type="text" placeholder="搜尋貨流紀錄..." className="w-full bg-slate-100 border-none rounded-xl py-2 px-4 text-sm" value={search} onChange={e => setSearch(e.target.value)} /></div>
       </Header>
       <div className="flex-1 overflow-y-auto p-3 space-y-3 pb-32">
         {filtered.map(t => (
