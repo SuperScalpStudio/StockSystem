@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { 
@@ -7,21 +8,40 @@ import {
   History,
   Trash2,
   Search,
-  Edit2,
   Camera,
-  X
+  X,
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Product, Transaction, TransactionType, InventoryState } from './types';
 
 // --- 配置區 ---
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzKRxsGMeTsrOdbGzjqic-GWoZ6c0G_REr08AHGJ5kk53_h2JQVk5tKGOpZAfd42emD/exec'; 
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzd8oBB0EGx2BnMaI402HQc9Njkeeg01-0PC6I58sGWXCzyDkPt_X5OTcMlx5U5FoCZ/exec'; 
 
 // --- 核心樣式 ---
 const topBarClass = "bg-white border-b border-slate-100 sticky top-0 z-40 shrink-0 safe-top";
 const inputClass = "w-full bg-white border border-slate-200/50 rounded-xl py-2.5 px-4 text-sm focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm";
 
 // --- 共用組件 ---
+
+// 優化後的極簡深灰毛玻璃載入遮罩
+const LoadingOverlay = ({ visible }: { visible: boolean }) => {
+  if (!visible) return null;
+  return (
+    <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-2xl animate-in fade-in duration-500 pointer-events-auto">
+      <div className="relative mb-6">
+        {/* 核心旋轉圖示 */}
+        <Loader2 className="text-indigo-400 animate-spin" size={48} strokeWidth={2.5} />
+        {/* 背景微光暈 */}
+        <div className="absolute inset-0 blur-3xl bg-indigo-500/30 rounded-full animate-pulse"></div>
+      </div>
+      <p className="text-white/80 font-black text-[12px] tracking-[0.4em] uppercase ml-2 animate-pulse">
+        同步雲端資料中
+      </p>
+    </div>
+  );
+};
 
 const Header = ({ children }: { children?: React.ReactNode }) => (
   <div className={topBarClass}>
@@ -182,6 +202,8 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
   const [scanner, setScanner] = useState(false);
   const [totalBill, setTotalBill] = useState('');
   const [remarks, setRemarks] = useState('');
+  
+  const [showError, setShowError] = useState(false);
 
   const bgColor = type === TransactionType.PURCHASE ? 'bg-purple-50' : 'bg-emerald-50';
 
@@ -201,6 +223,13 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
 
   const handleFinalSubmit = () => {
     const isEurPurchase = type === TransactionType.PURCHASE && currency === 'EUR';
+    
+    if (isEurPurchase && !totalBill) {
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
+      return;
+    }
+
     let processedItems = [...items];
     let finalTotal = items.reduce((acc, i) => acc + (i.price * i.quantity), 0);
 
@@ -222,6 +251,7 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
     setName('');
     setQty('');
     setPrice('');
+    setShowError(false);
   };
 
   const currentListTotal = items.reduce((acc, i) => acc + (i.price * i.quantity), 0);
@@ -305,8 +335,19 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
             <div className="space-y-4">
               {type === TransactionType.PURCHASE && currency === 'EUR' ? (
                 <div className="space-y-1">
-                  <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider ml-1">台幣總金額（含運費及稅金）</p>
-                  <input type="number" inputMode="decimal" placeholder="必填：請手動輸入最終總額" className="w-full bg-slate-800 border-none rounded-xl py-3 px-4 text-base text-white font-black placeholder:text-slate-600 placeholder:font-normal" onWheel={handleWheel} value={totalBill} onChange={e => setTotalBill(e.target.value)} />
+                  <div className="flex justify-between items-center ml-1">
+                    <p className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">台幣總金額（含運費及稅金）</p>
+                    {showError && <span className="text-red-400 text-[9px] font-black flex items-center gap-1 animate-pulse"><AlertCircle size={10} /> 必填項目</span>}
+                  </div>
+                  <input 
+                    type="number" 
+                    inputMode="decimal" 
+                    placeholder="請輸入刷卡台幣總額" 
+                    className={`w-full bg-slate-800 border-none rounded-xl py-3 px-4 text-base text-white font-black placeholder:text-slate-600 placeholder:font-normal transition-all ${showError ? 'ring-2 ring-red-500 animate-shake' : ''}`} 
+                    onWheel={handleWheel} 
+                    value={totalBill} 
+                    onChange={e => { setTotalBill(e.target.value); setShowError(false); }} 
+                  />
                 </div>
               ) : (
                 <div className="space-y-1">
@@ -320,6 +361,11 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
               </div>
             </div>
             <div className="h-px bg-slate-800 my-2" />
+            
+            {showError && (
+              <p className="text-center text-red-400 text-[11px] font-bold">⚠️ 請先輸入台幣總金額再提交</p>
+            )}
+
             <button onClick={handleFinalSubmit} className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black text-sm active:scale-95 transition-all">
               確認提交
             </button>
@@ -423,7 +469,6 @@ export default function App() {
           const oldWAC = Number(p.weightedAverageCost) || 0;
           const newQ = oldQ + item.quantity;
           
-          // 加權平均成本：防呆除以 0 
           if (newQ !== 0) {
             p.weightedAverageCost = (oldQ * oldWAC + item.quantity * item.price) / newQ;
           } else {
@@ -456,13 +501,14 @@ export default function App() {
   return (
     <Router>
       <div className="app-container flex flex-col lg:flex-row bg-slate-50 overflow-hidden relative">
-        <div className={`fixed top-0 left-0 right-0 h-1 z-[60] bg-indigo-500 transition-opacity duration-500 ${loading ? 'opacity-100' : 'opacity-0'}`} />
+        <LoadingOverlay visible={loading} />
         <Navigation />
         <main className="flex-1 lg:pl-20 overflow-hidden h-full">
           <Routes>
             <Route path="/" element={<InventoryView state={state} onUpdate={(p) => { 
               const ns = {...state, products: {...state.products, [p.barcode]: p}}; 
-              setState(ns); sync('POST', {products: ns.products, transaction: {id:'U'+Date.now(), type: TransactionType.PURCHASE, items:[], totalAmount:0}}); 
+              setState(ns); 
+              sync('POST', { products: ns.products }); 
             }} />} />
             <Route path="/purchase" element={<TransactionView key="PURCHASE" type={TransactionType.PURCHASE} inventory={state.products} onSubmit={handleTransaction} />} />
             <Route path="/sale" element={<TransactionView key="SALE" type={TransactionType.SALE} inventory={state.products} onSubmit={handleTransaction} />} />
