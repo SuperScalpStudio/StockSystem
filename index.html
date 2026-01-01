@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -10,7 +11,7 @@
         body { 
             font-family: 'Inter', sans-serif; 
             -webkit-tap-highlight-color: transparent; 
-            overscroll-behavior-y: contain; /* 防止下拉重新整理干擾掃描 */
+            overscroll-behavior-y: contain;
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -18,13 +19,27 @@
         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         #reader__scan_region video { object-fit: cover !important; }
         
-        /* 處理高度與安全區域 */
         .app-container {
             height: 100vh;
             height: 100dvh;
         }
         .safe-top { padding-top: env(safe-area-inset-top); }
         .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+        /* 震動動畫 - 用於提示歐元總額未填 */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+        .animate-shake { animation: shake 0.2s ease-in-out 0s 2; }
+
+        /* 旋轉動畫 */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-slow { animation: spin 2s linear infinite; }
     </style>
 <script type="importmap">
 {
@@ -43,6 +58,6 @@
 </head>
 <body class="bg-slate-50 text-slate-900 overflow-hidden">
     <div id="root" class="app-container flex flex-col"></div>
-    <script type="module" src="./index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>
