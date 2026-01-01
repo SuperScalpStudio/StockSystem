@@ -18,25 +18,35 @@
         input[type="number"]::-webkit-inner-spin-button, 
         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         
-        /* 掃描器徹底優化 */
+        /* 掃描器最底層黑化 */
         #reader {
             border: none !important;
             background: black !important;
+            width: 100% !important;
+            height: 100% !important;
         }
+
+        /* 影片元素強制填滿 */
         #reader video { 
             object-fit: cover !important; 
             width: 100% !important; 
             height: 100% !important;
         }
-        /* 強制隱藏 html5-qrcode 所有產生的掃描區域 DIV 邊框與提示 */
-        #reader__scan_region, #reader__scan_region * {
+
+        /* 徹底刪除套件內建的白色掃描框與任何裝飾 */
+        #reader__scan_region, 
+        #reader__scan_region div, 
+        #reader__scan_region canvas {
             border: none !important;
             box-shadow: none !important;
+            outline: none !important;
         }
-        #reader img { 
-            display: none !important; 
-        }
-        #reader__dashboard, #reader__header_message {
+
+        /* 隱藏所有內建文字與按鈕 */
+        #reader__dashboard, 
+        #reader__header_message, 
+        #reader__status_span,
+        #reader img {
             display: none !important;
         }
         
