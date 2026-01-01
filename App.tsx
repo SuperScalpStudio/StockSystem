@@ -241,8 +241,14 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
 
   const lookup = (code: string) => {
     setBarcode(code);
-    if (inventory[code]) setName(inventory[code].name);
-    else if (type === TransactionType.SALE) setName('');
+    // 方案 A 實作：
+    // 若庫存中存在此條碼，自動帶入品名；若不存在，則清空品名。
+    // 這確保了在進貨新商品時，不會殘留上一個掃描/輸入的品名。
+    if (inventory[code]) {
+      setName(inventory[code].name);
+    } else {
+      setName('');
+    }
   };
 
   const addItem = () => {
