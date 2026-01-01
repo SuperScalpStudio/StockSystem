@@ -75,30 +75,31 @@ const Navigation = () => {
 };
 
 const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onClose: () => void }) => {
+  const BOX_HEIGHT = 140; // 統一掃描框高度
+
   useEffect(() => {
     const html5QrCode = new Html5Qrcode("reader");
     
-    // 動態計算掃描框：寬度為視窗 75%，高度固定為適合條碼的扁平比例
     const qrboxFunction = (viewfinderWidth: number, viewfinderHeight: number) => {
-      const boxWidth = Math.floor(viewfinderWidth * 0.75);
-      const boxHeight = 160; 
-      return { width: boxWidth, height: boxHeight };
+      const boxWidth = Math.floor(viewfinderWidth * 0.8); // 稍微加寬，有利於長條碼
+      return { width: boxWidth, height: BOX_HEIGHT };
     };
 
     html5QrCode.start(
       { facingMode: "environment" }, 
       { 
-        fps: 20, 
+        fps: 25, 
         qrbox: qrboxFunction,
-        aspectRatio: 1.0 
+        // 移除 aspectRatio 限制，讓鏡頭維持原生比例以利對焦
       }, 
       (text) => {
-        if (navigator.vibrate) navigator.vibrate(50); // 震動回饋
+        if (navigator.vibrate) navigator.vibrate(50);
         onScan(text);
         html5QrCode.stop().then(() => onClose());
       }, 
       undefined
-    ).catch(() => { 
+    ).catch((err) => { 
+      console.error("Scanner Error:", err);
       alert("無法開啟相機，請確認權限設定"); 
       onClose(); 
     });
@@ -112,48 +113,44 @@ const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onC
 
   return (
     <div className="fixed inset-0 bg-black z-[100] flex flex-col overflow-hidden animate-in fade-in duration-300">
-      {/* 掃描器背景預覽 */}
       <div id="reader" className="absolute inset-0 w-full h-full bg-black"></div>
       
-      {/* 沉浸式 UI 遮罩與定位框 */}
       <div className="absolute inset-0 z-10 pointer-events-none flex flex-col">
-        {/* 上方遮罩 */}
         <div className="flex-1 bg-black/60"></div>
         
-        {/* 中間掃描帶 (包含挖空與 L 型線條) */}
-        <div className="flex h-[160px]">
+        <div style={{ height: `${BOX_HEIGHT}px` }} className="flex">
           <div className="flex-1 bg-black/60"></div>
-          <div className="w-[75vw] relative">
-            {/* 四角 L 型線條 (靛藍色) */}
-            <div className="absolute top-0 left-0 w-8 h-8 border-t-[5px] border-l-[5px] border-indigo-500 rounded-tl-sm"></div>
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-[5px] border-r-[5px] border-indigo-500 rounded-tr-sm"></div>
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-[5px] border-l-[5px] border-indigo-500 rounded-bl-sm"></div>
-            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-[5px] border-r-[5px] border-indigo-500 rounded-br-sm"></div>
+          <div className="w-[80vw] relative">
+            {/* 定位邊框 (移除內建邊框後，這是唯一的視覺引導) */}
+            <div className="absolute top-0 left-0 w-8 h-8 border-t-[4px] border-l-[4px] border-indigo-500 rounded-tl-sm shadow-[0_0_15px_rgba(99,102,241,0.5)]"></div>
+            <div className="absolute top-0 right-0 w-8 h-8 border-t-[4px] border-r-[4px] border-indigo-500 rounded-tr-sm shadow-[0_0_15px_rgba(99,102,241,0.5)]"></div>
+            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-[4px] border-l-[4px] border-indigo-500 rounded-bl-sm shadow-[0_0_15px_rgba(99,102,241,0.5)]"></div>
+            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-[4px] border-r-[4px] border-indigo-500 rounded-br-sm shadow-[0_0_15px_rgba(99,102,241,0.5)]"></div>
+            
+            {/* 掃描線動畫 - 可選，但此處僅用靜態視覺 */}
           </div>
           <div className="flex-1 bg-black/60"></div>
         </div>
         
-        {/* 下方遮罩與指引文字 */}
         <div className="flex-1 bg-black/60 flex flex-col items-center pt-10">
-          <p className="text-white/90 text-[14px] font-black tracking-[0.2em] uppercase mb-3">請將條碼對準框內</p>
-          <div className="w-12 h-1 bg-white/20 rounded-full"></div>
+          <p className="text-white/90 text-[14px] font-black tracking-[0.2em] uppercase mb-3 drop-shadow-lg">將條碼置於框內</p>
+          <div className="w-12 h-1 bg-indigo-500/50 rounded-full"></div>
         </div>
       </div>
 
-      {/* 取消按鈕 */}
       <div className="absolute bottom-16 left-0 right-0 z-20 flex justify-center px-8">
         <button 
           onClick={onClose} 
-          className="bg-white/10 backdrop-blur-xl border border-white/20 text-white px-10 py-4 rounded-2xl font-black text-sm active:scale-95 transition-all flex items-center gap-2 shadow-2xl"
+          className="bg-white/10 backdrop-blur-2xl border border-white/20 text-white px-10 py-4 rounded-2xl font-black text-sm active:scale-95 transition-all flex items-center gap-2 shadow-2xl"
         >
-          <X size={18} /> 取消掃描
+          <X size={18} /> 取消
         </button>
       </div>
     </div>
   );
 };
 
-// --- 頁面組件 ---
+// --- 其他頁面組件保持不變 ---
 
 const InventoryView = ({ state, onUpdate }: { state: InventoryState, onUpdate: (p: Product) => void }) => {
   const [search, setSearch] = useState('');
