@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { 
@@ -18,13 +19,18 @@ import { Product, Transaction, TransactionType, InventoryState } from './types';
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyl7qt2kIZHw45ghHLCqicGwhRipn36wLE-eHwiua6bSyxApbiEJ7zh0bPvGMkWpk6A/exec'; 
 
 // --- 核心樣式 ---
-const topBarClass = "h-16 bg-white border-b border-slate-100 flex items-center sticky top-0 z-40 shrink-0";
+const topBarClass = "bg-white border-b border-slate-100 sticky top-0 z-40 shrink-0 safe-top";
 const inputClass = "w-full bg-white border border-slate-200/50 rounded-xl py-2.5 px-4 text-sm focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm";
 
 // --- 共用組件 ---
 
-const Header = ({ children }: { children: React.ReactNode }) => (
-  <div className={topBarClass}>{children}</div>
+// Fix: Change Header props to allow optional children to resolve "missing children" TS error
+const Header = ({ children }: { children?: React.ReactNode }) => (
+  <div className={topBarClass}>
+    <div className="h-16 flex items-center">
+      {children}
+    </div>
+  </div>
 );
 
 const Navigation = () => {
@@ -37,16 +43,18 @@ const Navigation = () => {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-100 flex justify-around items-center z-50 px-2 lg:h-screen lg:w-20 lg:flex-col lg:left-0 lg:top-0 lg:border-r lg:border-t-0">
-      {navItems.map((item) => {
-        const active = pathname === item.path;
-        return (
-          <Link key={item.path} to={item.path} className={`flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-all ${active ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400'}`}>
-            {item.icon}
-            <span className="text-[10px] font-bold mt-0.5">{item.label}</span>
-          </Link>
-        );
-      })}
+    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 z-50 px-2 lg:h-screen lg:w-20 lg:flex-col lg:left-0 lg:top-0 lg:border-r lg:border-t-0 safe-bottom">
+      <div className="h-16 flex justify-around items-center lg:h-full lg:flex-col lg:justify-center lg:gap-8">
+        {navItems.map((item) => {
+          const active = pathname === item.path;
+          return (
+            <Link key={item.path} to={item.path} className={`flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-all ${active ? 'text-indigo-600 bg-indigo-50' : 'text-slate-400'}`}>
+              {item.icon}
+              <span className="text-[10px] font-bold mt-0.5">{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 };
@@ -62,7 +70,7 @@ const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onC
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
       <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl">
         <div id="reader" className="w-full aspect-square bg-black"></div>
         <button onClick={onClose} className="w-full py-5 text-slate-500 font-bold flex items-center justify-center gap-2"><X size={18} /> 關閉掃描器</button>
@@ -88,7 +96,7 @@ const InventoryView = ({ state, onUpdate }: { state: InventoryState, onUpdate: (
     .sort((a, b) => b.quantity - a.quantity);
 
   return (
-    <div className="flex flex-col h-full bg-slate-50">
+    <div className="flex flex-col h-full">
       <Header>
         <div className="grid grid-cols-3 w-full divide-x divide-slate-100">
           <div className="flex flex-col items-center justify-center">
@@ -106,7 +114,7 @@ const InventoryView = ({ state, onUpdate }: { state: InventoryState, onUpdate: (
         </div>
       </Header>
       
-      <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4 pb-20">
+      <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4 pb-32">
         <div className="relative">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input type="text" className={inputClass + " pl-10 border-none shadow-sm"} value={search} onChange={e => setSearch(e.target.value)} />
@@ -129,7 +137,7 @@ const InventoryView = ({ state, onUpdate }: { state: InventoryState, onUpdate: (
       </div>
 
       {editing && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-black/50 z-[110] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-xs rounded-3xl p-6 shadow-xl">
             <h3 className="font-black text-sm mb-4">修改品名</h3>
             <input type="text" className={inputClass} value={editing.name} onChange={e => setEditing({...editing, name: e.target.value})} />
@@ -144,7 +152,8 @@ const InventoryView = ({ state, onUpdate }: { state: InventoryState, onUpdate: (
   );
 };
 
-const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType, inventory: Record<string, Product>, onSubmit: (items: any[], type: TransactionType, remarks: string, actualTotal?: number) => void }) => {
+// Fix: Add optional key to TransactionView props type to resolve TS error when passing key in JSX
+const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType, inventory: Record<string, Product>, onSubmit: (items: any[], type: TransactionType, remarks: string, actualTotal?: number) => void, key?: React.Key }) => {
   const [currency, setCurrency] = useState<'TWD' | 'EUR'>(type === TransactionType.PURCHASE ? 'EUR' : 'TWD');
   const [items, setItems] = useState<any[]>([]);
   const [barcode, setBarcode] = useState('');
@@ -197,7 +206,6 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
 
   const currentListTotal = items.reduce((acc, i) => acc + (i.price * i.quantity), 0);
 
-  // 停用數字輸入框的滾輪事件，防止意外加減
   const handleWheel = (e: React.WheelEvent<HTMLInputElement>) => {
     (e.target as HTMLInputElement).blur();
   };
@@ -223,7 +231,7 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
 
       {scanner && <ScannerModal onScan={lookup} onClose={() => setScanner(false)} />}
       
-      <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4 pb-20">
+      <div className="flex-1 overflow-y-auto no-scrollbar p-4 space-y-4 pb-32">
         <div className="bg-white p-5 rounded-2xl border border-slate-200/50 shadow-sm space-y-4">
           <div className="flex gap-2">
             <div className="relative flex-1">
@@ -330,7 +338,7 @@ const HistoryView = ({ transactions }: { transactions: Transaction[] }) => {
         </div>
       </Header>
 
-      <div className="flex-1 overflow-y-auto no-scrollbar p-3 space-y-3 pb-20">
+      <div className="flex-1 overflow-y-auto no-scrollbar p-3 space-y-3 pb-32">
         {filtered.length === 0 && <div className="py-20 text-center text-slate-300 text-sm font-bold tracking-widest uppercase">No Records Found</div>}
         {filtered.map(t => (
           <div key={t.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden animate-in fade-in duration-300">
@@ -413,7 +421,7 @@ export default function App() {
 
   return (
     <Router>
-      <div className="h-full flex flex-col lg:flex-row bg-slate-50">
+      <div className="app-container flex flex-col lg:flex-row bg-slate-50 overflow-hidden relative">
         <div className={`fixed top-0 left-0 right-0 h-1 z-[60] bg-indigo-500 transition-opacity duration-500 ${loading ? 'opacity-100' : 'opacity-0'}`} />
         <Navigation />
         <main className="flex-1 lg:pl-20 overflow-hidden h-full">
