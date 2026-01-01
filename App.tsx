@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { 
   PackagePlus, 
@@ -9,7 +9,8 @@ import {
   Search,
   Edit2,
   Camera,
-  X
+  X,
+  RefreshCw
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Product, Transaction, TransactionType, InventoryState } from './types';
@@ -58,20 +59,114 @@ const Navigation = () => {
 };
 
 const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onClose: () => void }) => {
+  const [cameras, setCameras] = useState<{ id: string, label: string }[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string>("");
+  const scannerRef = useRef<Html5Qrcode | null>(null);
+
   useEffect(() => {
-    const html5QrCode = new Html5Qrcode("reader");
-    html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 150 } }, (text) => {
-      onScan(text);
-      html5QrCode.stop().then(() => onClose());
-    }, undefined).catch(() => { alert("無法開啟相機"); onClose(); });
-    return () => { if (html5QrCode.isScanning) html5QrCode.stop().catch(() => {}); };
+    Html5Qrcode.getCameras().then(devices => {
+      if (devices && devices.length > 0) {
+        const mappedDevices = devices.map(d => ({ id: d.id, label: d.label }));
+        setCameras(mappedDevices);
+
+        // 智慧偵測：優先尋找廣角或超廣角鏡頭 (通常標籤包含 ultra, wide, back, 0.5x, 0.6x)
+        const findBestCamera = () => {
+          const lowerLabels = mappedDevices.map(d => ({ ...d, label: d.label.toLowerCase() }));
+          
+          // 順序 1: 超廣角 (最適合近拍)
+          const ultraWide = lowerLabels.find(d => d.label.includes('ultra') || d.label.includes('0.5x') || d.label.includes('0.6x'));
+          if (ultraWide) return ultraWide.id;
+
+          // 順序 2: 廣角
+          const wide = lowerLabels.find(d => d.label.includes('wide'));
+          if (wide) return wide.id;
+
+          // 順序 3: 一般後置
+          const back = lowerLabels.find(d => d.label.includes('back'));
+          if (back) return back.id;
+
+          // 沒找到就選最後一個 (通常是行動裝置的主鏡頭)
+          return mappedDevices[mappedDevices.length - 1].id;
+        };
+
+        setSelectedCameraId(findBestCamera());
+      }
+    }).catch(err => {
+      console.error("無法取得鏡頭清單", err);
+    });
+
+    return () => {
+      if (scannerRef.current?.isScanning) {
+        scannerRef.current.stop().catch(() => {});
+      }
+    };
   }, []);
 
+  useEffect(() => {
+    if (!selectedCameraId) return;
+
+    const startScanner = async () => {
+      try {
+        if (scannerRef.current?.isScanning) {
+          await scannerRef.current.stop();
+        }
+        
+        const html5QrCode = new Html5Qrcode("reader");
+        scannerRef.current = html5QrCode;
+
+        await html5QrCode.start(
+          selectedCameraId, 
+          { 
+            fps: 20, // 提高 FPS 讓識別更靈敏
+            qrbox: { width: 260, height: 160 },
+            aspectRatio: 1.0
+          }, 
+          (text) => {
+            onScan(text);
+            html5QrCode.stop().then(() => onClose());
+          }, 
+          undefined
+        );
+      } catch (err) {
+        console.error("掃描器啟動失敗", err);
+      }
+    };
+
+    startScanner();
+  }, [selectedCameraId]);
+
   return (
-    <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl">
+    <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-md">
+      <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col">
+        {/* 智慧鏡頭選單 */}
+        {cameras.length > 1 && (
+          <div className="bg-slate-50 p-3 border-b border-slate-100 flex items-center gap-2">
+            <RefreshCw size={14} className="text-indigo-500" />
+            <select 
+              className="flex-1 bg-transparent text-xs font-bold text-slate-600 outline-none"
+              value={selectedCameraId}
+              onChange={(e) => setSelectedCameraId(e.target.value)}
+            >
+              {cameras.map((cam, idx) => (
+                <option key={cam.id} value={cam.id}>鏡頭 {idx + 1}: {cam.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div id="reader" className="w-full aspect-square bg-black"></div>
-        <button onClick={onClose} className="w-full py-5 text-slate-500 font-bold flex items-center justify-center gap-2"><X size={18} /> 關閉掃描器</button>
+        
+        <div className="p-4 bg-white space-y-3">
+          <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
+            系統已自動優先選擇廣角鏡頭<br/>若對焦緩慢，請嘗試切換其他鏡頭
+          </p>
+          <button 
+            onClick={onClose} 
+            className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+          >
+            <X size={18} /> 關閉掃描器
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -84,7 +179,7 @@ const InventoryView = ({ state, onUpdate }: { state: InventoryState, onUpdate: (
   const [editing, setEditing] = useState<Product | null>(null);
 
   const stats = useMemo(() => {
-    const cost = Object.values(state.products).reduce((acc, p) => acc + ((p.quantity || 0) * (p.weightedAverageCost || 0)), 0);
+    const cost = Object.values(state.products).reduce((acc, p) => acc + ((Number(p.quantity) || 0) * (Number(p.weightedAverageCost) || 0)), 0);
     const profit = state.transactions.filter(t => t.type === TransactionType.SALE).reduce((acc, t) => acc + (t.totalProfit || 0), 0);
     return { cost, profit, count: Object.keys(state.products).length };
   }, [state]);
@@ -210,7 +305,7 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
       const rate = totalEur !== 0 ? finalTotal / totalEur : 1;
       processedItems = items.map(i => ({ ...i, price: i.price * rate }));
     } else if (type === TransactionType.SALE) {
-      processedItems = items.map(i => ({ ...i, profit: i.price - i.cost }));
+      processedItems = items.map(i => ({ ...i, profit: (i.price - i.cost) * i.quantity }));
     }
 
     onSubmit(processedItems, type, remarks, finalTotal);
@@ -423,7 +518,6 @@ export default function App() {
           const oldWAC = Number(p.weightedAverageCost) || 0;
           const newQ = oldQ + item.quantity;
           
-          // 加權平均成本：防呆除以 0 
           if (newQ !== 0) {
             p.weightedAverageCost = (oldQ * oldWAC + item.quantity * item.price) / newQ;
           } else {
