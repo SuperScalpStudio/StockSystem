@@ -78,12 +78,12 @@ const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onC
   useEffect(() => {
     const html5QrCode = new Html5Qrcode("reader");
     
-    // 移除 qrbox 參數：讓引擎掃描整個鏡頭畫面，大幅提升辨識寬容度與速度
+    // 徹底移除所有限制（qrbox, aspectRatio），讓辨識速度最快
     html5QrCode.start(
       { facingMode: "environment" }, 
       { 
-        fps: 20,
-        // 不設定 qrbox 與 aspectRatio，使用全螢幕掃描提升對焦與辨識率
+        fps: 25,
+        // 不傳入 qrbox，表示全螢幕辨識，靈敏度最高
       }, 
       (text) => {
         if (navigator.vibrate) navigator.vibrate(60);
@@ -105,52 +105,53 @@ const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onC
   }, []);
 
   return (
-    <div className="fixed inset-0 bg-black z-[100] flex flex-col overflow-hidden animate-in fade-in duration-300">
-      {/* 這是相機底層 */}
-      <div id="reader" className="absolute inset-0 w-full h-full bg-black"></div>
+    <div className="fixed inset-0 bg-black z-[100] flex flex-col overflow-hidden">
+      {/* 這是唯一底層相機畫面 */}
+      <div id="reader" className="w-full h-full"></div>
       
-      {/* 這是唯一且純視覺的導引框 (CSS 繪製) */}
+      {/* 這是自定義 UI 遮罩層 - 與掃描引擎完全脫離關係 */}
       <div className="absolute inset-0 z-10 pointer-events-none flex flex-col">
-        {/* 上遮罩 */}
-        <div className="flex-1 bg-black/50"></div>
+        {/* 半透明遮罩 (上) */}
+        <div className="flex-1 bg-black/40"></div>
         
-        {/* 中間導引帶 */}
-        <div className="flex h-36">
-          <div className="flex-1 bg-black/50"></div>
+        {/* 中央掃描導引區 (僅視覺) */}
+        <div className="flex h-32">
+          <div className="flex-1 bg-black/40"></div>
           <div className="w-[85vw] relative">
-            {/* 簡約定位線 */}
+            {/* 藍色 L 型定位線 */}
             <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg"></div>
             <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg"></div>
             <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg"></div>
             <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-indigo-500 rounded-br-lg"></div>
             
-            {/* 紅色中心瞄準線 - 視覺心理暗示對齊，但不限制引擎掃描 */}
-            <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-red-500/30 blur-[1px] animate-pulse"></div>
+            {/* 掃描提示線 */}
+            <div className="absolute top-1/2 left-4 right-4 h-[1px] bg-red-500/50 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
           </div>
-          <div className="flex-1 bg-black/50"></div>
+          <div className="flex-1 bg-black/40"></div>
         </div>
         
-        {/* 下遮罩 */}
-        <div className="flex-1 bg-black/50 flex flex-col items-center pt-8">
-          <p className="text-white/80 text-[13px] font-bold tracking-widest uppercase mb-2">自動偵測中</p>
-          <p className="text-white/40 text-[10px] uppercase tracking-tighter">無需對齊，掃描器將自動讀取</p>
+        {/* 半透明遮罩 (下) */}
+        <div className="flex-1 bg-black/40 flex flex-col items-center pt-10">
+          <p className="text-white font-black text-sm tracking-widest bg-indigo-600/20 px-4 py-2 rounded-full border border-indigo-500/30">
+            全畫面自動偵測中
+          </p>
         </div>
       </div>
 
-      {/* 底部控制區 */}
+      {/* 關閉按鈕 */}
       <div className="absolute bottom-12 left-0 right-0 z-20 flex justify-center px-10">
         <button 
           onClick={onClose} 
-          className="bg-white/10 backdrop-blur-2xl border border-white/20 text-white w-full py-4 rounded-2xl font-black text-sm active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-2"
+          className="bg-white/10 backdrop-blur-3xl border border-white/20 text-white w-full py-4 rounded-2xl font-black text-sm active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-2"
         >
-          <X size={18} /> 關閉
+          <X size={18} /> 關閉鏡頭
         </button>
       </div>
     </div>
   );
 };
 
-// --- 其他視圖保持原樣 ---
+// --- 以下組件邏輯維持不變 ---
 
 const InventoryView = ({ state, onUpdate }: { state: InventoryState, onUpdate: (p: Product) => void }) => {
   const [search, setSearch] = useState('');
