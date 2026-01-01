@@ -15,7 +15,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { Product, Transaction, TransactionType, InventoryState } from './types';
 
 // --- 配置區 ---
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyl7qt2kIZHw45ghHLCqicGwhRipn36wLE-eHwiua6bSyxApbiEJ7zh0bPvGMkWpk6A/exec'; 
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzKRxsGMeTsrOdbGzjqic-GWoZ6c0G_REr08AHGJ5kk53_h2JQVk5tKGOpZAfd42emD/exec'; 
 
 // --- 核心樣式 ---
 const topBarClass = "bg-white border-b border-slate-100 sticky top-0 z-40 shrink-0 safe-top";
@@ -84,7 +84,7 @@ const InventoryView = ({ state, onUpdate }: { state: InventoryState, onUpdate: (
   const [editing, setEditing] = useState<Product | null>(null);
 
   const stats = useMemo(() => {
-    const cost = Object.values(state.products).reduce((acc, p) => acc + (p.quantity * p.weightedAverageCost), 0);
+    const cost = Object.values(state.products).reduce((acc, p) => acc + ((p.quantity || 0) * (p.weightedAverageCost || 0)), 0);
     const profit = state.transactions.filter(t => t.type === TransactionType.SALE).reduce((acc, t) => acc + (t.totalProfit || 0), 0);
     return { cost, profit, count: Object.keys(state.products).length };
   }, [state]);
@@ -134,7 +134,7 @@ const InventoryView = ({ state, onUpdate }: { state: InventoryState, onUpdate: (
                 <h4 className="font-bold text-[13px] text-slate-800 truncate leading-tight mb-1">{p.name}</h4>
                 <div className="flex items-center gap-2">
                   <span className="text-[9px] font-mono text-slate-400 bg-slate-50 px-1 rounded uppercase tracking-tighter border border-slate-100">#{p.barcode}</span>
-                  <span className="text-[9px] text-slate-400 font-bold">成本: ${Math.round(p.weightedAverageCost)}</span>
+                  <span className="text-[9px] text-slate-400 font-bold">成本: ${Math.round(p.weightedAverageCost || 0)}</span>
                 </div>
               </div>
               
@@ -193,7 +193,9 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
 
   const addItem = () => {
     if (!barcode || !name || !qty) return;
-    setItems([{ barcode, name, quantity: Number(qty), price: Number(price) || 0, cost: inventory[barcode]?.weightedAverageCost || 0 }, ...items]);
+    const nQty = Number(qty) || 0;
+    const nPrice = price === "" ? 0 : Number(price);
+    setItems([{ barcode, name, quantity: nQty, price: nPrice, cost: inventory[barcode]?.weightedAverageCost || 0 }, ...items]);
     setBarcode(''); setName(''); setQty(''); setPrice('');
   };
 
@@ -205,7 +207,7 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
     if (isEurPurchase && totalBill) {
       finalTotal = Number(totalBill);
       const totalEur = items.reduce((acc, i) => acc + (i.price * i.quantity), 0);
-      const rate = finalTotal / totalEur;
+      const rate = totalEur !== 0 ? finalTotal / totalEur : 1;
       processedItems = items.map(i => ({ ...i, price: i.price * rate }));
     } else if (type === TransactionType.SALE) {
       processedItems = items.map(i => ({ ...i, profit: i.price - i.cost }));
@@ -417,16 +419,30 @@ export default function App() {
       const p = nextState.products[item.barcode];
       if (type === TransactionType.PURCHASE) {
         if (p) {
-          const newQ = p.quantity + item.quantity;
-          p.weightedAverageCost = (p.quantity * p.weightedAverageCost + item.quantity * item.price) / newQ;
+          const oldQ = Number(p.quantity) || 0;
+          const oldWAC = Number(p.weightedAverageCost) || 0;
+          const newQ = oldQ + item.quantity;
+          
+          // 加權平均成本：防呆除以 0 
+          if (newQ !== 0) {
+            p.weightedAverageCost = (oldQ * oldWAC + item.quantity * item.price) / newQ;
+          } else {
+            p.weightedAverageCost = item.price;
+          }
           p.quantity = newQ;
         } else {
-          nextState.products[item.barcode] = { barcode: item.barcode, name: item.name, quantity: item.quantity, weightedAverageCost: item.price, lastUpdated: new Date().toISOString() };
+          nextState.products[item.barcode] = { 
+            barcode: item.barcode, 
+            name: item.name, 
+            quantity: item.quantity, 
+            weightedAverageCost: item.price, 
+            lastUpdated: new Date().toISOString() 
+          };
         }
       } else {
         if (p) {
-          totalProf += (item.price - p.weightedAverageCost) * item.quantity;
-          p.quantity -= item.quantity;
+          totalProf += (item.price - (Number(p.weightedAverageCost) || 0)) * item.quantity;
+          p.quantity = (Number(p.quantity) || 0) - item.quantity;
         }
       }
     });
