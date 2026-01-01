@@ -8,9 +8,10 @@ import {
   Trash2,
   Search,
   Edit2,
-  Camera,
+  Camera as CameraIcon,
   X,
-  RefreshCw
+  RefreshCw,
+  Maximize
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Product, Transaction, TransactionType, InventoryState } from './types';
@@ -69,23 +70,26 @@ const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onC
         const mappedDevices = devices.map(d => ({ id: d.id, label: d.label }));
         setCameras(mappedDevices);
 
-        // 智慧偵測：優先尋找廣角或超廣角鏡頭 (通常標籤包含 ultra, wide, back, 0.5x, 0.6x)
         const findBestCamera = () => {
           const lowerLabels = mappedDevices.map(d => ({ ...d, label: d.label.toLowerCase() }));
           
-          // 順序 1: 超廣角 (最適合近拍)
-          const ultraWide = lowerLabels.find(d => d.label.includes('ultra') || d.label.includes('0.5x') || d.label.includes('0.6x'));
+          // 強勢優先：尋找超廣角 (Ultra Wide / 0.5x)
+          const ultraWide = lowerLabels.find(d => 
+            d.label.includes('ultra') || 
+            d.label.includes('0.5') || 
+            d.label.includes('0.6') || 
+            d.label.includes('triple')
+          );
           if (ultraWide) return ultraWide.id;
 
-          // 順序 2: 廣角
+          // 次要優先：廣角 (Wide)
           const wide = lowerLabels.find(d => d.label.includes('wide'));
           if (wide) return wide.id;
 
-          // 順序 3: 一般後置
+          // 三級優先：一般後置
           const back = lowerLabels.find(d => d.label.includes('back'));
           if (back) return back.id;
 
-          // 沒找到就選最後一個 (通常是行動裝置的主鏡頭)
           return mappedDevices[mappedDevices.length - 1].id;
         };
 
@@ -117,8 +121,12 @@ const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onC
         await html5QrCode.start(
           selectedCameraId, 
           { 
-            fps: 20, // 提高 FPS 讓識別更靈敏
-            qrbox: { width: 260, height: 160 },
+            fps: 25, 
+            qrbox: (viewfinderWidth, viewfinderHeight) => {
+              const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+              const size = Math.floor(minEdge * 0.7);
+              return { width: size, height: size * 0.6 }; // 針對條碼改為長方形框
+            },
             aspectRatio: 1.0
           }, 
           (text) => {
@@ -136,35 +144,49 @@ const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onC
   }, [selectedCameraId]);
 
   return (
-    <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-md">
-      <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl flex flex-col">
-        {/* 智慧鏡頭選單 */}
+    <div className="fixed inset-0 bg-black z-[100] flex flex-col items-center justify-between safe-top safe-bottom">
+      {/* 頂部浮層：控制鏡頭 */}
+      <div className="absolute top-0 left-0 right-0 p-4 z-10 flex flex-col gap-2 items-center">
         {cameras.length > 1 && (
-          <div className="bg-slate-50 p-3 border-b border-slate-100 flex items-center gap-2">
-            <RefreshCw size={14} className="text-indigo-500" />
+          <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl px-3 py-2 flex items-center gap-3 w-full max-w-[280px]">
+            <RefreshCw size={14} className="text-white/60" />
             <select 
-              className="flex-1 bg-transparent text-xs font-bold text-slate-600 outline-none"
+              className="flex-1 bg-transparent text-xs font-bold text-white outline-none appearance-none"
               value={selectedCameraId}
               onChange={(e) => setSelectedCameraId(e.target.value)}
             >
               {cameras.map((cam, idx) => (
-                <option key={cam.id} value={cam.id}>鏡頭 {idx + 1}: {cam.label}</option>
+                <option key={cam.id} value={cam.id} className="text-slate-900">
+                  鏡頭 {idx + 1}: {cam.label.includes('Back') ? '後置' : cam.label}
+                </option>
               ))}
             </select>
           </div>
         )}
+      </div>
 
-        <div id="reader" className="w-full aspect-square bg-black"></div>
-        
-        <div className="p-4 bg-white space-y-3">
-          <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
-            系統已自動優先選擇廣角鏡頭<br/>若對焦緩慢，請嘗試切換其他鏡頭
+      {/* 掃描核心區域 */}
+      <div id="reader" className="w-full h-full bg-black overflow-hidden relative">
+        {/* 自定義掃描框裝飾 */}
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+          <div className="w-[70%] aspect-[5/3] border-2 border-white/30 rounded-3xl relative">
+            <div className="absolute inset-0 border-2 border-indigo-500 rounded-3xl opacity-50 animate-pulse" />
+            <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.8)] animate-bounce" />
+          </div>
+        </div>
+      </div>
+      
+      {/* 底部浮層：關閉與提示 */}
+      <div className="absolute bottom-0 left-0 right-0 p-6 z-10 bg-gradient-to-t from-black/80 to-transparent pt-12">
+        <div className="max-w-xs mx-auto space-y-4">
+          <p className="text-center text-[11px] text-white/60 font-medium uppercase tracking-widest bg-white/5 py-1.5 rounded-full backdrop-blur-sm">
+            請將條碼對準框線中心
           </p>
           <button 
             onClick={onClose} 
-            className="w-full py-4 bg-slate-100 text-slate-500 rounded-2xl font-black text-sm active:scale-95 transition-all flex items-center justify-center gap-2"
+            className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black text-sm active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-black/20"
           >
-            <X size={18} /> 關閉掃描器
+            <X size={20} /> 結束掃描
           </button>
         </div>
       </div>
@@ -305,7 +327,7 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
       const rate = totalEur !== 0 ? finalTotal / totalEur : 1;
       processedItems = items.map(i => ({ ...i, price: i.price * rate }));
     } else if (type === TransactionType.SALE) {
-      processedItems = items.map(i => ({ ...i, profit: (i.price - i.cost) * i.quantity }));
+      processedItems = items.map(i => ({ ...i, profit: (i.price - (i.cost || 0)) * i.quantity }));
     }
 
     onSubmit(processedItems, type, remarks, finalTotal);
@@ -353,7 +375,7 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input type="text" placeholder="輸入或掃描條碼..." className={inputClass + " pl-10"} value={barcode} onChange={e => lookup(e.target.value)} />
             </div>
-            <button onClick={() => setScanner(true)} className="bg-slate-900 text-white p-2.5 rounded-xl active:scale-90 transition-transform"><Camera size={20} /></button>
+            <button onClick={() => setScanner(true)} className="bg-slate-900 text-white p-2.5 rounded-xl active:scale-90 transition-transform"><CameraIcon size={20} /></button>
           </div>
           <input type="text" placeholder="商品名稱" className={inputClass} value={name} onChange={e => setName(e.target.value)} />
           <div className="grid grid-cols-2 gap-3">
