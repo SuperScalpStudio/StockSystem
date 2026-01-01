@@ -75,32 +75,25 @@ const Navigation = () => {
 };
 
 const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onClose: () => void }) => {
-  const BOX_HEIGHT = 140; // 統一掃描框高度
-
   useEffect(() => {
     const html5QrCode = new Html5Qrcode("reader");
     
-    const qrboxFunction = (viewfinderWidth: number, viewfinderHeight: number) => {
-      const boxWidth = Math.floor(viewfinderWidth * 0.8); // 稍微加寬，有利於長條碼
-      return { width: boxWidth, height: BOX_HEIGHT };
-    };
-
+    // 移除 qrbox 參數：讓引擎掃描整個鏡頭畫面，大幅提升辨識寬容度與速度
     html5QrCode.start(
       { facingMode: "environment" }, 
       { 
-        fps: 25, 
-        qrbox: qrboxFunction,
-        // 移除 aspectRatio 限制，讓鏡頭維持原生比例以利對焦
+        fps: 20,
+        // 不設定 qrbox 與 aspectRatio，使用全螢幕掃描提升對焦與辨識率
       }, 
       (text) => {
-        if (navigator.vibrate) navigator.vibrate(50);
+        if (navigator.vibrate) navigator.vibrate(60);
         onScan(text);
-        html5QrCode.stop().then(() => onClose());
+        html5QrCode.stop().then(() => onClose()).catch(() => onClose());
       }, 
       undefined
     ).catch((err) => { 
-      console.error("Scanner Error:", err);
-      alert("無法開啟相機，請確認權限設定"); 
+      console.error(err);
+      alert("無法啟動相機"); 
       onClose(); 
     });
 
@@ -113,44 +106,51 @@ const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onC
 
   return (
     <div className="fixed inset-0 bg-black z-[100] flex flex-col overflow-hidden animate-in fade-in duration-300">
+      {/* 這是相機底層 */}
       <div id="reader" className="absolute inset-0 w-full h-full bg-black"></div>
       
+      {/* 這是唯一且純視覺的導引框 (CSS 繪製) */}
       <div className="absolute inset-0 z-10 pointer-events-none flex flex-col">
-        <div className="flex-1 bg-black/60"></div>
+        {/* 上遮罩 */}
+        <div className="flex-1 bg-black/50"></div>
         
-        <div style={{ height: `${BOX_HEIGHT}px` }} className="flex">
-          <div className="flex-1 bg-black/60"></div>
-          <div className="w-[80vw] relative">
-            {/* 定位邊框 (移除內建邊框後，這是唯一的視覺引導) */}
-            <div className="absolute top-0 left-0 w-8 h-8 border-t-[4px] border-l-[4px] border-indigo-500 rounded-tl-sm shadow-[0_0_15px_rgba(99,102,241,0.5)]"></div>
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-[4px] border-r-[4px] border-indigo-500 rounded-tr-sm shadow-[0_0_15px_rgba(99,102,241,0.5)]"></div>
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-[4px] border-l-[4px] border-indigo-500 rounded-bl-sm shadow-[0_0_15px_rgba(99,102,241,0.5)]"></div>
-            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-[4px] border-r-[4px] border-indigo-500 rounded-br-sm shadow-[0_0_15px_rgba(99,102,241,0.5)]"></div>
+        {/* 中間導引帶 */}
+        <div className="flex h-36">
+          <div className="flex-1 bg-black/50"></div>
+          <div className="w-[85vw] relative">
+            {/* 簡約定位線 */}
+            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg"></div>
+            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg"></div>
+            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg"></div>
+            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-indigo-500 rounded-br-lg"></div>
             
-            {/* 掃描線動畫 - 可選，但此處僅用靜態視覺 */}
+            {/* 紅色中心瞄準線 - 視覺心理暗示對齊，但不限制引擎掃描 */}
+            <div className="absolute top-1/2 left-4 right-4 h-0.5 bg-red-500/30 blur-[1px] animate-pulse"></div>
           </div>
-          <div className="flex-1 bg-black/60"></div>
+          <div className="flex-1 bg-black/50"></div>
         </div>
         
-        <div className="flex-1 bg-black/60 flex flex-col items-center pt-10">
-          <p className="text-white/90 text-[14px] font-black tracking-[0.2em] uppercase mb-3 drop-shadow-lg">將條碼置於框內</p>
-          <div className="w-12 h-1 bg-indigo-500/50 rounded-full"></div>
+        {/* 下遮罩 */}
+        <div className="flex-1 bg-black/50 flex flex-col items-center pt-8">
+          <p className="text-white/80 text-[13px] font-bold tracking-widest uppercase mb-2">自動偵測中</p>
+          <p className="text-white/40 text-[10px] uppercase tracking-tighter">無需對齊，掃描器將自動讀取</p>
         </div>
       </div>
 
-      <div className="absolute bottom-16 left-0 right-0 z-20 flex justify-center px-8">
+      {/* 底部控制區 */}
+      <div className="absolute bottom-12 left-0 right-0 z-20 flex justify-center px-10">
         <button 
           onClick={onClose} 
-          className="bg-white/10 backdrop-blur-2xl border border-white/20 text-white px-10 py-4 rounded-2xl font-black text-sm active:scale-95 transition-all flex items-center gap-2 shadow-2xl"
+          className="bg-white/10 backdrop-blur-2xl border border-white/20 text-white w-full py-4 rounded-2xl font-black text-sm active:scale-95 transition-all shadow-2xl flex items-center justify-center gap-2"
         >
-          <X size={18} /> 取消
+          <X size={18} /> 關閉
         </button>
       </div>
     </div>
   );
 };
 
-// --- 其他頁面組件保持不變 ---
+// --- 其他視圖保持原樣 ---
 
 const InventoryView = ({ state, onUpdate }: { state: InventoryState, onUpdate: (p: Product) => void }) => {
   const [search, setSearch] = useState('');
