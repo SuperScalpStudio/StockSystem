@@ -338,7 +338,7 @@ const TransactionView = ({ type, inventory, onSubmit }: { type: TransactionType,
           <div className="bg-slate-900 text-white p-6 rounded-3xl space-y-4 shadow-xl">
             <div className="space-y-4">
               {type === TransactionType.PURCHASE && currency === 'EUR' ? (
-                <input type="number" placeholder="刷卡台幣總額" className="w-full bg-slate-800 border-none rounded-xl py-3 px-4 text-white font-black" value={totalBill} onChange={e => setTotalBill(e.target.value)} />
+                <input type="number" placeholder="台幣總額" className="w-full bg-slate-800 border-none rounded-xl py-3 px-4 text-white font-black" value={totalBill} onChange={e => setTotalBill(e.target.value)} />
               ) : (
                 <p className="text-2xl font-black">${currentListTotal.toLocaleString()}</p>
               )}
