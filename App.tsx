@@ -78,27 +78,18 @@ const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onC
   useEffect(() => {
     const html5QrCode = new Html5Qrcode("reader");
     
-    // 強化掃描靈敏度的配置
+    // 最穩定且靈敏的配置
     const config = { 
-      fps: 30, // 保持穩定流暢
-      qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-        // 明確告訴引擎：掃描全螢幕區域
-        return { width: viewfinderWidth, height: viewfinderHeight };
-      },
-      // 關鍵：啟用瀏覽器原生硬體加速解碼 (大幅提升靈敏度)
+      fps: 25, 
+      // 不設定 qrbox 代表使用全畫幅掃描，這在現代手機上最靈敏
       experimentalFeatures: {
         useBarCodeDetectorIfSupported: true
-      },
-      // 禁用翻轉計算以節省 CPU
-      disableFlip: true
+      }
     };
 
+    // 寬鬆的相機要求，確保能成功啟動
     const cameraConfig = {
-      facingMode: "environment",
-      // 要求 HD 解析度以識別細小條碼
-      aspectRatio: 1.7777778, // 16:9
-      width: { ideal: 1280 },
-      height: { ideal: 720 }
+      facingMode: "environment"
     };
     
     html5QrCode.start(
@@ -112,6 +103,7 @@ const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onC
       undefined
     ).catch((err) => { 
       console.error("Camera Start Error:", err);
+      // 如果啟動失敗，直接關閉 modal
       onClose(); 
     });
 
@@ -127,7 +119,7 @@ const ScannerModal = ({ onScan, onClose }: { onScan: (data: string) => void, onC
       {/* 全螢幕相機視圖 */}
       <div id="reader" className="absolute inset-0 w-full h-full"></div>
       
-      {/* 底部極簡關閉鈕 - 純淨全螢幕無多餘裝飾 */}
+      {/* 底部極簡關閉鈕 - 100% 純淨 */}
       <div className="absolute bottom-12 left-0 right-0 z-20 flex justify-center">
         <button 
           onClick={onClose} 
